@@ -1,0 +1,82 @@
+from pprint import pprint
+import random
+import math
+
+# Константы
+TIMESTAMPS_COUNT = 50000
+PROBABILITY_SCORE_CHANGED = 0.0001
+PROBABILITY_HOME_SCORE = 0.45
+OFFSET_MAX_STEP = 3
+
+# Начальное состояние
+INITIAL_STAMP = {
+    "offset": 0,
+    "score": {
+        "home": 0,
+        "away": 0
+    }
+}
+
+
+# Генерация одного штампа
+def generate_stamp(previous_value):
+    score_changed = random.random() > 1 - PROBABILITY_SCORE_CHANGED
+    home_score_change = 1 if score_changed and random.random() > 1 - PROBABILITY_HOME_SCORE else 0
+    away_score_change = 1 if score_changed and not home_score_change else 0
+    offset_change = math.floor(random.random() * OFFSET_MAX_STEP) + 1
+
+    return {
+        "offset": previous_value["offset"] + offset_change,
+        "score": {
+            "home": previous_value["score"]["home"] + home_score_change,
+            "away": previous_value["score"]["away"] + away_score_change
+        }
+    }
+
+
+# Генерация списка game_stamps
+def generate_game():
+    stamps = [INITIAL_STAMP]
+    current_stamp = INITIAL_STAMP
+    for _ in range(TIMESTAMPS_COUNT):
+        current_stamp = generate_stamp(current_stamp)
+        stamps.append(current_stamp)
+    return stamps
+
+
+# Определение функции get_score
+def get_score(game_stamps, offset):
+    """
+    Возвращает счет (home, away) для указанного offset.
+    Если точного offset в game_stamps нет, возвращается счет для ближайшего предыдущего offset.
+
+    :param game_stamps: Список словарей, содержащих игровые данные (offset и счет).
+    :param offset: Целое число, offset, для которого нужно вернуть счет.
+    :return: Кортеж (home_score, away_score).
+    """
+    # Граничный случай: если offset меньше первого значения
+    if offset < game_stamps[0]["offset"]:
+        return (0, 0)
+    # Используем бинарный поиск для эффективности
+    low, high = 0, len(game_stamps) - 1
+    while low <= high:
+        mid = (low + high) // 2
+        if game_stamps[mid]["offset"] == offset:
+            # Найден точный offset, возвращаем его счет
+            return (game_stamps[mid]["score"]["home"], game_stamps[mid]["score"]["away"])
+        elif game_stamps[mid]["offset"] < offset:
+            # Ищем в правой половине
+            low = mid + 1
+        else:
+            # Ищем в левой половине
+            high = mid - 1
+    # Если точного совпадения нет, используем ближайший предыдущий offset
+    closest_stamp = game_stamps[high]
+    return (closest_stamp["score"]["home"], closest_stamp["score"]["away"])
+
+
+# Тестирование
+game_stamps = generate_game()
+print(get_score(game_stamps, 100))
+print(get_score(game_stamps, 0))
+print(get_score(game_stamps, 1000000))
